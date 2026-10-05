@@ -3,6 +3,8 @@
   if (!data) throw new Error("Vehicle cost data was not loaded.");
 
   const percentages = [0.1, 0.12, 0.15, 0.18, 0.21, 0.24, 0.27, 0.3];
+  const canonical = (value) =>
+    (value || "").trim().replace(/\s+/g, " ").toLocaleUpperCase("th-TH");
   const elements = {
     form: document.querySelector("#lookup-form"),
     from: document.querySelector("#from-input"),
@@ -14,10 +16,28 @@
     resultBody: document.querySelector("#result-body"),
     copy: document.querySelector("#copy-button"),
     toast: document.querySelector("#toast"),
+    addActions: document.querySelector("#add-data-actions"),
+    addButton: document.querySelector("#add-data-button"),
+    addDialog: document.querySelector("#add-data-dialog"),
+    addForm: document.querySelector("#add-data-form"),
+    addRoute: document.querySelector("#add-data-route"),
+    addError: document.querySelector("#add-data-error"),
   };
 
-  const canonical = (value) =>
-    (value || "").trim().replace(/\s+/g, " ").toLocaleUpperCase("th-TH");
+  const savedDataKey = "vehicle-cost-added-routes-v1";
+  try {
+    const savedRoutes = JSON.parse(localStorage.getItem(savedDataKey) || "[]");
+    if (Array.isArray(savedRoutes)) savedRoutes.forEach((route) => {
+      if (!route || !route.from || !route.to || !route.vehicleType || !Array.isArray(route.offers)) return;
+      const existing = data.routes.find((item) => canonical(item.from) === canonical(route.from) && canonical(item.to) === canonical(route.to) && canonical(item.vehicleType) === canonical(route.vehicleType));
+      if (existing) {
+        route.offers.forEach((offer) => { existing.offers.push(offer); if (offer.cost < existing.minCost) { existing.minCost = offer.cost; existing.minCompany = offer.company; } });
+      } else data.routes.push(route);
+      if (!data.vehicleTypes.some((value) => canonical(value) === canonical(route.vehicleType))) data.vehicleTypes.push(route.vehicleType);
+      if (!data.fromValues.some((value) => canonical(value) === canonical(route.from))) data.fromValues.push(route.from);
+    });
+  } catch { /* Ignore invalid saved data and keep workbook data available. */ }
+
   const formatMoney = new Intl.NumberFormat("th-TH", {
     maximumFractionDigits: 0,
   });
@@ -139,9 +159,11 @@
     const filterDesc = vehicle ? ` ประเภทรถ: ${vehicle}` : "";
     elements.summary.textContent = `${from} → ${to}${filterDesc}`;
     elements.resultBody.innerHTML = `<tr class="missing-row"><td colspan="17">ไม่พบราคาสำหรับเส้นทาง ${from} → ${to}${filterDesc} กรุณาเลือกเงื่อนไขใหม่</td></tr>`;
+    elements.addActions.hidden = false;
   }
 
   function renderResults(rows, from, to, selectedVehicle, vehicleCount) {
+    elements.addActions.hidden = true;
     currentRows = rows;
     elements.copy.disabled = false;
 
@@ -200,6 +222,7 @@
   }
 
   function search() {
+    elements.addActions.hidden = true;
     const from = exactValue(elements.from.value, data.fromValues);
     const toCandidates = from
       ? [...new Set(routesForFrom(from).map((route) => route.to))]
@@ -330,6 +353,54 @@
     } catch {
       showToast("ไม่สามารถคัดลอกได้ กรุณาลองใหม่อีกครั้ง");
     }
+  });
+
+  const closeAddDialog = () => elements.addDialog.close();
+  elements.addButton.addEventListener("click", () => {
+    elements.addRoute.textContent = `${elements.from.value} → ${elements.to.value}`;
+    const list = document.querySelector("#vehicle-options");
+    list.replaceChildren(...data.vehicleTypes.map((value) => new Option(value, value)));
+    elements.addError.textContent = "";
+    elements.addDialog.showModal();
+  });
+  document.querySelector("#close-data-dialog").addEventListener("click", closeAddDialog);
+  document.querySelector("#cancel-data-button").addEventListener("click", closeAddDialog);
+  elements.addForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(elements.addForm);
+    const vehicleType = String(form.get("vehicleType") || "").trim();
+    const company = String(form.get("company") || "").trim();
+    const cost = Number(form.get("cost"));
+    if (!vehicleType || !company || !Number.isFinite(cost) || cost < 0) {
+      elements.addError.textContent = "กรุณากรอกประเภทรถ บริษัท และราคาต้นทุนให้ถูกต้อง";
+      return;
+    }
+    const from = elements.from.value.trim();
+    const to = elements.to.value.trim();
+    let route = data.routes.find((item) => canonical(item.from) === canonical(from) && canonical(item.to) === canonical(to) && canonical(item.vehicleType) === canonical(vehicleType));
+    if (!route) {
+      route = { from, to, vehicleType, minCost: cost, minCompany: company, offers: [] };
+      data.routes.push(route);
+    }
+    route.offers.push({ company, cost, sourceRow: null, receive: String(form.get("receive") || "").trim(), toProvince: String(form.get("toProvince") || "").trim(), toCity: String(form.get("toCity") || "").trim(), toLocation: String(form.get("toLocation") || "").trim(), send: String(form.get("send") || "").trim() });
+    if (cost < route.minCost) { route.minCost = cost; route.minCompany = company; }
+    if (!data.vehicleTypes.some((value) => canonical(value) === canonical(vehicleType))) data.vehicleTypes.push(vehicleType);
+    vehicleOrder.set(vehicleType, vehicleOrder.size);
+    try {
+      const existing = JSON.parse(localStorage.getItem(savedDataKey) || "[]");
+      const savedRoute = existing.find((item) => canonical(item.from) === canonical(from) && canonical(item.to) === canonical(to) && canonical(item.vehicleType) === canonical(vehicleType));
+      if (savedRoute) savedRoute.offers.push(route.offers.at(-1));
+      else existing.push({ from, to, vehicleType, minCost: route.minCost, minCompany: route.minCompany, offers: [route.offers.at(-1)] });
+      localStorage.setItem(savedDataKey, JSON.stringify(existing));
+    } catch {
+      route.offers.pop();
+      elements.addError.textContent = "บันทึกไม่ได้ กรุณาตรวจสอบพื้นที่จัดเก็บของเบราว์เซอร์";
+      return;
+    }
+    elements.addForm.reset();
+    closeAddDialog();
+    updateTo();
+    showToast("บันทึกข้อมูลใหม่ไว้ในเบราว์เซอร์นี้แล้ว");
   });
 
   // Initial population

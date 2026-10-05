@@ -142,6 +142,9 @@
           <p class="scroll-hint">
             เลื่อนตารางในแนวนอนเพื่อดูรายละเอียดเส้นทางและเปอร์เซ็นต์ทั้งหมด
           </p>
+          <div id="add-data-actions" class="add-data-actions" hidden>
+            <button id="add-data-button" class="search-button" type="button">＋ เพิ่มข้อมูลเส้นทางนี้</button>
+          </div>
           <div
             class="table-scroll"
             tabindex="0"
@@ -177,6 +180,31 @@
             </table>
           </div>
         </section>
+
+        <dialog id="add-data-dialog" class="data-dialog" aria-labelledby="add-data-title">
+          <form id="add-data-form" class="data-form">
+            <div class="dialog-heading">
+              <div>
+                <p class="field-label">รายการใหม่</p>
+                <h2 id="add-data-title">เพิ่มข้อมูลต้นทุน</h2>
+                <p id="add-data-route" class="dialog-route"></p>
+              </div>
+              <button id="close-data-dialog" class="dialog-close" type="button" aria-label="ปิด">×</button>
+            </div>
+            <label class="field"><span class="field-label">ประเภทรถ</span><input name="vehicleType" required list="vehicle-options" maxlength="100" placeholder="เช่น 6 ล้อ" /><datalist id="vehicle-options"></datalist></label>
+            <label class="field"><span class="field-label">บริษัท</span><input name="company" required maxlength="150" placeholder="ชื่อบริษัท" /></label>
+            <label class="field"><span class="field-label">ราคาต้นทุน (บาท)</span><input name="cost" required type="number" min="0" step="1" /></label>
+            <details class="optional-details"><summary>รายละเอียดเพิ่มเติม (ไม่บังคับ)</summary>
+              <label class="field"><span class="field-label">รับ</span><input name="receive" maxlength="200" /></label>
+              <label class="field"><span class="field-label">To province</span><input name="toProvince" maxlength="100" /></label>
+              <label class="field"><span class="field-label">To City</span><input name="toCity" maxlength="100" /></label>
+              <label class="field"><span class="field-label">To location</span><input name="toLocation" maxlength="200" /></label>
+              <label class="field"><span class="field-label">ส่ง</span><input name="send" maxlength="200" /></label>
+            </details>
+            <p id="add-data-error" class="dialog-error" role="alert"></p>
+            <div class="dialog-actions"><button class="utility-button" id="cancel-data-button" type="button">ยกเลิก</button><button class="search-button" type="submit">บันทึกข้อมูล</button></div>
+          </form>
+        </dialog>
 
         <footer class="docket-footer">
           <p>
