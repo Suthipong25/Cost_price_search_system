@@ -168,6 +168,7 @@ h1 {
 .field select[aria-invalid="true"] { border-color: var(--error); background: var(--error-soft); }
 .field select option { color: var(--ink); background: var(--paper-bright); font-weight: 600; }
 
+
 .route-mark {
   align-self: end;
   display: grid;
@@ -250,15 +251,11 @@ table { width: 100%; border-collapse: collapse; }
 .price-ledger .empty-row td { height: 86px; color: var(--ink-muted); text-align: center; }
 .price-ledger .missing-row td { background: var(--error-soft); color: var(--error); font-family: inherit; text-align: center; }
 
-.add-data-actions { display: flex; justify-content: center; padding: 14px; border: 1px dashed var(--rule); border-top: 0; }
-.add-data-actions[hidden] { display: none; }
-.add-data-actions .search-button { min-height: 42px; padding: 9px 18px; }
 .data-dialog { width: min(540px, calc(100vw - 28px)); max-height: min(90vh, 780px); padding: 0; color: var(--ink); background: var(--paper); border: 1.5px solid var(--ink); box-shadow: 0 24px 80px rgba(23,52,81,.3); }
 .data-dialog::backdrop { background: rgba(15, 28, 40, .55); }
 .data-form { display: grid; gap: 14px; padding: clamp(18px, 4vw, 30px); overflow-y: auto; }
 .dialog-heading { display: flex; justify-content: space-between; align-items: start; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
 .dialog-heading h2 { margin: 2px 0; }
-.dialog-route { margin: 4px 0 0; color: var(--ink-muted); }
 .dialog-close { border: 0; background: transparent; color: var(--ink); font-size: 1.8rem; line-height: 1; cursor: pointer; }
 .data-form .field { display: grid; gap: 5px; }
 .data-form input { width: 100%; min-height: 42px; padding: 8px 10px; color: var(--ink); background: var(--paper-bright); border: 1px solid var(--rule); border-radius: 0; font: inherit; }
@@ -372,7 +369,7 @@ table { width: 100%; border-collapse: collapse; }
   html, body { background: white; }
   .app-shell { padding: 0; }
   .docket { box-shadow: none; border: 0; padding: 18px; }
-  .perforation, .lookup-strip, .form-message, .result-actions, .scroll-hint, .offers-toggle, .toast, .add-data-actions, .data-dialog { display: none !important; }
+  .perforation, .lookup-strip, .form-message, .result-actions, .scroll-hint, .offers-toggle, .toast, .data-dialog { display: none !important; }
   .table-scroll { overflow: visible; }
   .price-ledger { min-width: 0; font-size: 9pt; }
   #offers-table-wrap { display: block !important; }

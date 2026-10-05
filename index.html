@@ -112,6 +112,13 @@
             </div>
             <div class="result-actions">
               <button
+                id="add-data-button"
+                class="utility-button"
+                type="button"
+              >
+                ＋ เพิ่มข้อมูลใหม่
+              </button>
+              <button
                 id="copy-button"
                 class="utility-button"
                 type="button"
@@ -142,9 +149,6 @@
           <p class="scroll-hint">
             เลื่อนตารางในแนวนอนเพื่อดูรายละเอียดเส้นทางและเปอร์เซ็นต์ทั้งหมด
           </p>
-          <div id="add-data-actions" class="add-data-actions" hidden>
-            <button id="add-data-button" class="search-button" type="button">＋ เพิ่มข้อมูลเส้นทางนี้</button>
-          </div>
           <div
             class="table-scroll"
             tabindex="0"
@@ -187,7 +191,6 @@
               <div>
                 <p class="field-label">รายการใหม่</p>
                 <h2 id="add-data-title">เพิ่มข้อมูลต้นทุน</h2>
-                <p id="add-data-route" class="dialog-route"></p>
               </div>
               <button id="close-data-dialog" class="dialog-close" type="button" aria-label="ปิด">×</button>
             </div>

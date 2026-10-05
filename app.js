@@ -16,11 +16,9 @@
     resultBody: document.querySelector("#result-body"),
     copy: document.querySelector("#copy-button"),
     toast: document.querySelector("#toast"),
-    addActions: document.querySelector("#add-data-actions"),
     addButton: document.querySelector("#add-data-button"),
     addDialog: document.querySelector("#add-data-dialog"),
     addForm: document.querySelector("#add-data-form"),
-    addRoute: document.querySelector("#add-data-route"),
     addError: document.querySelector("#add-data-error"),
   };
 
@@ -159,11 +157,9 @@
     const filterDesc = vehicle ? ` ประเภทรถ: ${vehicle}` : "";
     elements.summary.textContent = `${from} → ${to}${filterDesc}`;
     elements.resultBody.innerHTML = `<tr class="missing-row"><td colspan="17">ไม่พบราคาสำหรับเส้นทาง ${from} → ${to}${filterDesc} กรุณาเลือกเงื่อนไขใหม่</td></tr>`;
-    elements.addActions.hidden = false;
   }
 
   function renderResults(rows, from, to, selectedVehicle, vehicleCount) {
-    elements.addActions.hidden = true;
     currentRows = rows;
     elements.copy.disabled = false;
 
@@ -222,7 +218,6 @@
   }
 
   function search() {
-    elements.addActions.hidden = true;
     const from = exactValue(elements.from.value, data.fromValues);
     const toCandidates = from
       ? [...new Set(routesForFrom(from).map((route) => route.to))]
@@ -305,6 +300,7 @@
     });
   }
 
+
   elements.copy.addEventListener("click", async () => {
     if (!currentRows || !currentRows.length) return;
     const headers = [
@@ -357,7 +353,11 @@
 
   const closeAddDialog = () => elements.addDialog.close();
   elements.addButton.addEventListener("click", () => {
-    elements.addRoute.textContent = `${elements.from.value} → ${elements.to.value}`;
+    if (!elements.from.value || !elements.to.value) {
+      showToast("กรุณาเลือก FROM และ TO ก่อนเพิ่มข้อมูล");
+      elements.from.focus();
+      return;
+    }
     const list = document.querySelector("#vehicle-options");
     list.replaceChildren(...data.vehicleTypes.map((value) => new Option(value, value)));
     elements.addError.textContent = "";
