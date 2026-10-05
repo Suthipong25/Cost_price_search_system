@@ -8,7 +8,11 @@
   const elements = {
     form: document.querySelector("#lookup-form"),
     from: document.querySelector("#from-input"),
+    fromSuggestions: document.querySelector("#from-suggestions"),
     to: document.querySelector("#to-input"),
+    toSuggestions: document.querySelector("#to-suggestions"),
+    province: document.querySelector("#province-input"),
+    provinceSuggestions: document.querySelector("#province-suggestions"),
     vehicle: document.querySelector("#vehicle-input"),
     search: document.querySelector("#search-button"),
     message: document.querySelector("#form-message"),
@@ -20,6 +24,11 @@
     addDialog: document.querySelector("#add-data-dialog"),
     addForm: document.querySelector("#add-data-form"),
     addError: document.querySelector("#add-data-error"),
+    dialogFrom: document.querySelector('#add-data-form [name="from"]'),
+    dialogTo: document.querySelector('#add-data-form [name="to"]'),
+    dialogFromList: document.querySelector("#dialog-from-options"),
+    dialogToList: document.querySelector("#dialog-to-options"),
+    dialogProvinceList: document.querySelector("#dialog-province-options"),
   };
 
   const savedDataKey = "vehicle-cost-added-routes-v1";
@@ -49,6 +58,92 @@
   const exactValue = (value, candidates) =>
     candidates.find((candidate) => canonical(candidate) === canonical(value));
 
+  const containsValue = (value, query) =>
+    !canonical(query) || canonical(value).includes(canonical(query));
+
+  const uniqueSorted = (values) => {
+    const seen = new Set();
+    return values
+      .filter(Boolean)
+      .map((value) => value.trim())
+      .filter((value) => {
+        const key = canonical(value);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => a.localeCompare(b, "th"));
+  };
+
+  const provinceThaiNames = new Map([
+    ["AYUTTHAYA", "พระนครศรีอยุธยา"],
+    ["BKK", "กรุงเทพมหานคร"],
+    ["BANGKOK", "กรุงเทพมหานคร"],
+    ["BURIRUM", "บุรีรัมย์"],
+    ["CHACHOENGSAO", "ฉะเชิงเทรา"],
+    ["CHEV CHONBURI", "ชลบุรี"],
+    ["CHON BURI", "ชลบุรี"],
+    ["CHONBURI", "ชลบุรี"],
+    ["CHIANG MAI", "เชียงใหม่"],
+    ["KHON KAEN", "ขอนแก่น"],
+    ["KRABI", "กระบี่"],
+    ["MAE HONG SON", "แม่ฮ่องสอน"],
+    ["NAKHON PATHOM", "นครปฐม"],
+    ["NAKHON RATCHASIMA", "นครราชสีมา"],
+    ["NAKHON SAWAN", "นครสวรรค์"],
+    ["NONTHABURI", "นนทบุรี"],
+    ["PATHUM THANI", "ปทุมธานี"],
+    ["PATHUMTHANI", "ปทุมธานี"],
+    ["PHRAE", "แพร่"],
+    ["PHUKET", "ภูเก็ต"],
+    ["PRACHINBURI", "ปราจีนบุรี"],
+    ["RATCHABURI", "ราชบุรี"],
+    ["RAYONG", "ระยอง"],
+    ["SAMUT PRAKAN", "สมุทรปราการ"],
+    ["SAMUT SAKHON", "สมุทรสาคร"],
+    ["SAMUT SAKORN", "สมุทรสาคร"],
+    ["SARABURI", "สระบุรี"],
+    ["SONGKLA", "สงขลา"],
+    ["UDON THANI", "อุดรธานี"],
+  ]);
+
+  const provinceThaiName = (value) => provinceThaiNames.get(canonical(value)) || "";
+
+  const matchesProvinceValue = (value, query) =>
+    containsValue(value, query) || containsValue(provinceThaiName(value), query);
+
+  const allProvinceValues = () =>
+    uniqueSorted(
+      data.routes.flatMap((route) =>
+        route.offers.map((offer) => offer.toProvince),
+      ),
+    );
+
+  const allToValues = () => uniqueSorted(data.routes.map((route) => route.to));
+
+  const setDatalistOptions = (target, values) => {
+    if (!target) return;
+    target.replaceChildren(
+      ...values.map((value) => {
+        const option = document.createElement("option");
+        option.value = value;
+        return option;
+      }),
+    );
+  };
+
+  const setProvinceDatalistOptions = (target, values) => {
+    if (!target) return;
+    target.replaceChildren(
+      ...values.map((value) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.label = provinceThaiName(value);
+        return option;
+      }),
+    );
+  };
+
   const setSelectOptions = (target, placeholder, values) => {
     if (!target) return;
     const selected = exactValue(target.value, values) ?? "";
@@ -67,35 +162,181 @@
   const routesForFrom = (from) =>
     data.routes.filter((route) => canonical(route.from) === canonical(from));
 
-  const routesForPair = (from, to) =>
-    routesForFrom(from).filter(
-      (route) => canonical(route.to) === canonical(to),
+  const routeMatchesProvince = (route, provinceTerm) =>
+    route.offers.some((offer) =>
+      matchesProvinceValue(offer.toProvince || "", provinceTerm),
     );
+
+  const getFilteredRoutes = (from, toTerm, provinceTerm) =>
+    routesForFrom(from).filter(
+      (route) =>
+        containsValue(route.to, toTerm) &&
+        (!provinceTerm || routeMatchesProvince(route, provinceTerm)),
+    );
+
+  const autocompleteControls = [];
+
+  const closeAutocomplete = (input, list) => {
+    list.hidden = true;
+    list.replaceChildren();
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+    list.dataset.activeIndex = "-1";
+  };
+
+  const closeOtherAutocompletes = (currentInput) => {
+    autocompleteControls.forEach(({ input, list }) => {
+      if (input !== currentInput) closeAutocomplete(input, list);
+    });
+  };
+
+  const renderAutocomplete = (input, list, values, isProvince) => {
+    if (input.disabled) {
+      closeAutocomplete(input, list);
+      return;
+    }
+
+    const query = input.value.trim();
+    const matches = values
+      .filter((value) =>
+        isProvince
+          ? matchesProvinceValue(value, query)
+          : containsValue(value, query),
+      )
+      .slice(0, 40);
+
+    list.replaceChildren();
+    list.dataset.activeIndex = "-1";
+
+    if (!matches.length) {
+      const empty = document.createElement("li");
+      empty.className = "autocomplete-empty";
+      empty.textContent = "ไม่พบข้อมูลที่ตรงกับคำค้น";
+      list.append(empty);
+    } else {
+      matches.forEach((value, index) => {
+        const option = document.createElement("li");
+        option.id = `${input.id}-option-${index}`;
+        option.className = "autocomplete-option";
+        option.role = "option";
+        option.dataset.value = value;
+        option.setAttribute("aria-selected", "false");
+
+        const primary = document.createElement("span");
+        primary.className = "autocomplete-primary";
+        primary.textContent = value;
+        option.append(primary);
+
+        const thaiName = isProvince ? provinceThaiName(value) : "";
+        if (thaiName) {
+          const secondary = document.createElement("span");
+          secondary.className = "autocomplete-secondary";
+          secondary.textContent = thaiName;
+          option.append(secondary);
+        }
+        list.append(option);
+      });
+    }
+
+    list.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+  };
+
+  const setActiveAutocompleteOption = (input, list, nextIndex) => {
+    const options = [...list.querySelectorAll(".autocomplete-option")];
+    if (!options.length) return;
+    const index = (nextIndex + options.length) % options.length;
+    options.forEach((option, optionIndex) => {
+      const active = optionIndex === index;
+      option.classList.toggle("is-active", active);
+      option.setAttribute("aria-selected", String(active));
+    });
+    list.dataset.activeIndex = String(index);
+    input.setAttribute("aria-activedescendant", options[index].id);
+    options[index].scrollIntoView({ block: "nearest" });
+  };
+
+  const setupAutocomplete = (input, list, getValues, isProvince = false) => {
+    const show = () => {
+      closeOtherAutocompletes(input);
+      renderAutocomplete(input, list, getValues(), isProvince);
+    };
+
+    const selectValue = (value) => {
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      closeAutocomplete(input, list);
+    };
+
+    autocompleteControls.push({ input, list });
+    input.addEventListener("focus", show);
+    input.addEventListener("click", show);
+    input.addEventListener("input", show);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        if (list.hidden) show();
+        const currentIndex = Number(list.dataset.activeIndex || -1);
+        setActiveAutocompleteOption(
+          input,
+          list,
+          currentIndex + (event.key === "ArrowDown" ? 1 : -1),
+        );
+      } else if (event.key === "Enter" && !list.hidden) {
+        const active = list.querySelector(".autocomplete-option.is-active");
+        if (active) {
+          event.preventDefault();
+          selectValue(active.dataset.value);
+        }
+      } else if (event.key === "Escape") {
+        closeAutocomplete(input, list);
+      } else if (event.key === "Tab") {
+        closeAutocomplete(input, list);
+      }
+    });
+
+    list.addEventListener("pointerdown", (event) => {
+      const option = event.target.closest(".autocomplete-option");
+      if (!option) return;
+      event.preventDefault();
+      selectValue(option.dataset.value);
+      input.focus();
+    });
+  };
+
+  const resetResults = (message = "เลือกต้นทาง แล้วพิมพ์ปลายทางหรือจังหวัดเพื่อดูราคา") => {
+    elements.resultBody.innerHTML = `<tr class="empty-row"><td colspan="17">${message}</td></tr>`;
+    elements.summary.textContent = message;
+    elements.copy.disabled = true;
+    currentRows = [];
+  };
+
+  let activeFrom = "";
 
   function updateFrom() {
     const from = exactValue(elements.from.value, data.fromValues);
-    const toValues = from
-      ? [...new Set(routesForFrom(from).map((route) => route.to))].sort(
-          (a, b) => a.localeCompare(b, "th"),
-        )
-      : [];
+    if (canonical(from) !== canonical(activeFrom)) {
+      elements.to.value = "";
+      elements.province.value = "";
+      activeFrom = from || "";
+    }
 
-    elements.to.value = "";
-    setSelectOptions(elements.to, "เลือกปลายทาง", toValues);
     elements.to.disabled = !from;
-    updateTo();
+    elements.province.disabled = !from;
+    updateFilters();
   }
 
-  function updateTo() {
+  function updateFilters() {
     const from = exactValue(elements.from.value, data.fromValues);
-    const toCandidates = from
-      ? [...new Set(routesForFrom(from).map((route) => route.to))]
+    const toTerm = elements.to.value.trim();
+    const provinceTerm = elements.province.value.trim();
+    const matchingRoutes = from
+      ? getFilteredRoutes(from, toTerm, provinceTerm)
       : [];
-    const to = exactValue(elements.to.value, toCandidates);
 
     if (elements.vehicle) {
-      if (from && to) {
-        const matchingRoutes = routesForPair(from, to);
+      if (from && (toTerm || provinceTerm) && matchingRoutes.length) {
         const availableVehicles = [
           ...new Set(matchingRoutes.map((r) => r.vehicleType)),
         ].sort((a, b) => (vehicleOrder.get(a) ?? 999) - (vehicleOrder.get(b) ?? 999));
@@ -115,28 +356,23 @@
 
     updateReadyState();
 
-    if (from && to) {
+    if (from && (toTerm || provinceTerm)) {
       search();
     } else {
-      elements.resultBody.innerHTML =
-        '<tr class="empty-row"><td colspan="17">เลือกต้นทางและปลายทางเพื่อดูราคา</td></tr>';
-      elements.summary.textContent = "เลือกต้นทางและปลายทางเพื่อดูราคา";
-      elements.copy.disabled = true;
-      currentRows = [];
+      resetResults();
     }
   }
 
   function updateReadyState() {
     const fromValid = Boolean(exactValue(elements.from.value, data.fromValues));
-    const toCandidates = fromValid
-      ? [...new Set(routesForFrom(elements.from.value).map((route) => route.to))]
-      : [];
-    const toValid = Boolean(exactValue(elements.to.value, toCandidates));
-    const ready = fromValid && toValid;
+    const hasDestinationFilter = Boolean(
+      elements.to.value.trim() || elements.province.value.trim(),
+    );
+    const ready = fromValid && hasDestinationFilter;
 
     elements.search.disabled = !ready;
     elements.message.textContent = "";
-    for (const field of [elements.from, elements.to, elements.vehicle].filter(Boolean)) {
+    for (const field of [elements.from, elements.to, elements.province, elements.vehicle].filter(Boolean)) {
       field.removeAttribute("aria-invalid");
     }
   }
@@ -151,22 +387,37 @@
     );
   }
 
-  function renderMissing(from, to, vehicle) {
-    currentRows = [];
-    elements.copy.disabled = true;
-    const filterDesc = vehicle ? ` ประเภทรถ: ${vehicle}` : "";
-    elements.summary.textContent = `${from} → ${to}${filterDesc}`;
-    elements.resultBody.innerHTML = `<tr class="missing-row"><td colspan="17">ไม่พบราคาสำหรับเส้นทาง ${from} → ${to}${filterDesc} กรุณาเลือกเงื่อนไขใหม่</td></tr>`;
+  function describeFilters(from, toTerm, provinceTerm, vehicle) {
+    const parts = [from];
+    if (toTerm) parts.push(`ปลายทาง: ${toTerm}`);
+    if (provinceTerm) parts.push(`จังหวัด: ${provinceTerm}`);
+    if (vehicle) parts.push(`ประเภทรถ: ${vehicle}`);
+    return parts.join(" · ");
   }
 
-  function renderResults(rows, from, to, selectedVehicle, vehicleCount) {
+  function renderMissing(from, toTerm, provinceTerm, vehicle) {
+    currentRows = [];
+    elements.copy.disabled = true;
+    const description = describeFilters(from, toTerm, provinceTerm, vehicle);
+    elements.summary.textContent = description;
+    const tr = document.createElement("tr");
+    tr.className = "missing-row";
+    const td = document.createElement("td");
+    td.colSpan = 17;
+    td.textContent = `ไม่พบราคาสำหรับ ${description} ลองพิมพ์คำค้นให้สั้นลงหรือเลือกจากรายการ`;
+    tr.append(td);
+    elements.resultBody.replaceChildren(tr);
+  }
+
+  function renderResults(rows, from, toTerm, provinceTerm, selectedVehicle, vehicleCount) {
     currentRows = rows;
     elements.copy.disabled = false;
 
     const vehicleText = selectedVehicle
       ? ` · ประเภทรถ: ${selectedVehicle}`
       : ` (${vehicleCount} ประเภทรถ)`;
-    elements.summary.textContent = `พบ ${rows.length} รายการราคา${vehicleText} · ${from} → ${to}`;
+    const filterText = describeFilters(from, toTerm, provinceTerm, "");
+    elements.summary.textContent = `พบ ${rows.length} รายการราคา${vehicleText} · ${filterText}`;
 
     elements.resultBody.replaceChildren();
     rows.forEach((row) => {
@@ -219,24 +470,26 @@
 
   function search() {
     const from = exactValue(elements.from.value, data.fromValues);
-    const toCandidates = from
-      ? [...new Set(routesForFrom(from).map((route) => route.to))]
-      : [];
-    const to = exactValue(elements.to.value, toCandidates);
+    const toTerm = elements.to.value.trim();
+    const provinceTerm = elements.province.value.trim();
     const selectedVehicle = elements.vehicle ? elements.vehicle.value : "";
 
     const invalid = [];
     if (!from) invalid.push(elements.from);
-    if (!to) invalid.push(elements.to);
+    if (!toTerm && !provinceTerm) invalid.push(elements.to, elements.province);
     if (invalid.length) {
       invalid.forEach((field) => field.setAttribute("aria-invalid", "true"));
-      elements.message.textContent = "กรุณาเลือก FROM และ TO ให้ครบถ้วน";
+      elements.message.textContent = from
+        ? "กรุณาพิมพ์ปลายทางหรือจังหวัดอย่างน้อย 1 ช่อง"
+        : "กรุณาพิมพ์หรือเลือก FROM จากรายการ";
       invalid[0].focus();
       return;
     }
 
-    let matchedRoutes = routesForPair(from, to);
-    const totalVehicleCount = matchedRoutes.length;
+    let matchedRoutes = getFilteredRoutes(from, toTerm, provinceTerm);
+    const totalVehicleCount = new Set(
+      matchedRoutes.map((route) => canonical(route.vehicleType)),
+    ).size;
 
     if (selectedVehicle) {
       matchedRoutes = matchedRoutes.filter(
@@ -246,7 +499,11 @@
 
     const rows = [];
     matchedRoutes.forEach((route) => {
-      route.offers.forEach((offer) => {
+      route.offers
+        .filter((offer) =>
+          !provinceTerm || matchesProvinceValue(offer.toProvince || "", provinceTerm),
+        )
+        .forEach((offer) => {
         rows.push({
           from: route.from,
           to: route.to,
@@ -261,7 +518,7 @@
           isMin: offer.cost === route.minCost,
           vehicleOrder: vehicleOrder.get(route.vehicleType) ?? 999,
         });
-      });
+        });
     });
 
     rows.sort((a, b) => {
@@ -271,12 +528,13 @@
     });
 
     if (rows.length === 0) {
-      renderMissing(from, to, selectedVehicle);
+      renderMissing(from, toTerm, provinceTerm, selectedVehicle);
     } else {
       renderResults(
         rows,
         from,
-        to,
+        toTerm,
+        provinceTerm,
         selectedVehicle,
         selectedVehicle ? 1 : totalVehicleCount,
       );
@@ -289,12 +547,16 @@
     search();
   });
 
-  elements.from.addEventListener("change", updateFrom);
-  elements.to.addEventListener("change", updateTo);
+  elements.from.addEventListener("input", updateFrom);
+  elements.to.addEventListener("input", updateFilters);
+  elements.province.addEventListener("input", updateFilters);
 
   if (elements.vehicle) {
     elements.vehicle.addEventListener("change", () => {
-      if (elements.from.value && elements.to.value) {
+      if (
+        elements.from.value &&
+        (elements.to.value || elements.province.value)
+      ) {
         search();
       }
     });
@@ -353,31 +615,58 @@
 
   const closeAddDialog = () => elements.addDialog.close();
   elements.addButton.addEventListener("click", () => {
-    if (!elements.from.value || !elements.to.value) {
-      showToast("กรุณาเลือก FROM และ TO ก่อนเพิ่มข้อมูล");
-      elements.from.focus();
-      return;
-    }
+    elements.addForm.reset();
+    const currentFrom = exactValue(elements.from.value, data.fromValues) || "";
+    const currentTo = currentFrom
+      ? exactValue(
+          elements.to.value,
+          uniqueSorted(routesForFrom(currentFrom).map((route) => route.to)),
+        ) || ""
+      : "";
+
+    setDatalistOptions(elements.dialogFromList, uniqueSorted(data.fromValues));
+    setDatalistOptions(
+      elements.dialogToList,
+      currentFrom
+        ? uniqueSorted(routesForFrom(currentFrom).map((route) => route.to))
+        : allToValues(),
+    );
     const list = document.querySelector("#vehicle-options");
     list.replaceChildren(...data.vehicleTypes.map((value) => new Option(value, value)));
+    setProvinceDatalistOptions(elements.dialogProvinceList, allProvinceValues());
+    elements.dialogFrom.value = currentFrom;
+    elements.dialogTo.value = currentTo;
+    const provinceField = elements.addForm.elements.namedItem("toProvince");
+    if (provinceField && elements.province.value.trim()) {
+      provinceField.value = elements.province.value.trim();
+    }
     elements.addError.textContent = "";
     elements.addDialog.showModal();
+    (currentFrom ? elements.dialogTo : elements.dialogFrom).focus();
+  });
+  elements.dialogFrom.addEventListener("input", () => {
+    const from = exactValue(elements.dialogFrom.value, data.fromValues);
+    setDatalistOptions(
+      elements.dialogToList,
+      from ? uniqueSorted(routesForFrom(from).map((route) => route.to)) : allToValues(),
+    );
   });
   document.querySelector("#close-data-dialog").addEventListener("click", closeAddDialog);
   document.querySelector("#cancel-data-button").addEventListener("click", closeAddDialog);
   elements.addForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const form = new FormData(elements.addForm);
+    const from = String(form.get("from") || "").trim();
+    const to = String(form.get("to") || "").trim();
     const vehicleType = String(form.get("vehicleType") || "").trim();
     const company = String(form.get("company") || "").trim();
     const cost = Number(form.get("cost"));
-    if (!vehicleType || !company || !Number.isFinite(cost) || cost < 0) {
-      elements.addError.textContent = "กรุณากรอกประเภทรถ บริษัท และราคาต้นทุนให้ถูกต้อง";
+    if (!from || !to || !vehicleType || !company || !Number.isFinite(cost) || cost < 0) {
+      elements.addError.textContent = "กรุณากรอก FROM, TO, ประเภทรถ บริษัท และราคาต้นทุนให้ครบถ้วน";
       return;
     }
-    const from = elements.from.value.trim();
-    const to = elements.to.value.trim();
     let route = data.routes.find((item) => canonical(item.from) === canonical(from) && canonical(item.to) === canonical(to) && canonical(item.vehicleType) === canonical(vehicleType));
+    const isNewRoute = !route;
     if (!route) {
       route = { from, to, vehicleType, minCost: cost, minCompany: company, offers: [] };
       data.routes.push(route);
@@ -394,31 +683,60 @@
       localStorage.setItem(savedDataKey, JSON.stringify(existing));
     } catch {
       route.offers.pop();
+      if (isNewRoute) data.routes.splice(data.routes.indexOf(route), 1);
       elements.addError.textContent = "บันทึกไม่ได้ กรุณาตรวจสอบพื้นที่จัดเก็บของเบราว์เซอร์";
       return;
     }
+    if (!data.fromValues.some((value) => canonical(value) === canonical(from))) {
+      data.fromValues.push(from);
+    }
     elements.addForm.reset();
     closeAddDialog();
-    updateTo();
-    showToast("บันทึกข้อมูลใหม่ไว้ในเบราว์เซอร์นี้แล้ว");
+    updateFilters();
+    showToast(`บันทึกข้อมูล ${from} → ${to} ไว้ในเบราว์เซอร์นี้แล้ว`);
+  });
+
+  setupAutocomplete(
+    elements.from,
+    elements.fromSuggestions,
+    () => uniqueSorted(data.fromValues),
+  );
+  setupAutocomplete(
+    elements.to,
+    elements.toSuggestions,
+    () => {
+      const from = exactValue(elements.from.value, data.fromValues);
+      if (!from) return [];
+      const provinceTerm = elements.province.value.trim();
+      const routes = provinceTerm
+        ? routesForFrom(from).filter((route) => routeMatchesProvince(route, provinceTerm))
+        : routesForFrom(from);
+      return uniqueSorted(routes.map((route) => route.to));
+    },
+  );
+  setupAutocomplete(
+    elements.province,
+    elements.provinceSuggestions,
+    () => {
+      const from = exactValue(elements.from.value, data.fromValues);
+      if (!from) return [];
+      const toTerm = elements.to.value.trim();
+      const routes = toTerm
+        ? routesForFrom(from).filter((route) => containsValue(route.to, toTerm))
+        : routesForFrom(from);
+      return uniqueSorted(
+        routes.flatMap((route) => route.offers.map((offer) => offer.toProvince)),
+      );
+    },
+    true,
+  );
+
+  document.addEventListener("pointerdown", (event) => {
+    if (!event.target.closest(".select-shell")) {
+      autocompleteControls.forEach(({ input, list }) => closeAutocomplete(input, list));
+    }
   });
 
   // Initial population
-  setSelectOptions(elements.from, "เลือกต้นทาง", data.fromValues);
-
-  const preferredFrom =
-    exactValue("Air BKK", data.fromValues) ?? data.fromValues[0];
-  if (preferredFrom) {
-    elements.from.value = preferredFrom;
-    updateFrom();
-
-    const availableTo = [
-      ...new Set(routesForFrom(preferredFrom).map((route) => route.to)),
-    ];
-    const preferredTo = exactValue("WUS", availableTo) ?? availableTo[0];
-    if (preferredTo) {
-      elements.to.value = preferredTo;
-      updateTo();
-    }
-  }
+  setProvinceDatalistOptions(elements.dialogProvinceList, allProvinceValues());
 })();

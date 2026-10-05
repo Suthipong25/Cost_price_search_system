@@ -43,12 +43,24 @@
           <label class="field">
             <span class="field-label">FROM</span>
             <span class="select-shell">
-              <select id="from-input" name="from" required>
-                <option value="">เลือกต้นทาง</option>
-              </select>
+              <input
+                id="from-input"
+                name="from"
+                type="text"
+                placeholder="พิมพ์หรือเลือกต้นทาง"
+                autocomplete="off"
+                aria-describedby="search-instruction"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-controls="from-suggestions"
+                aria-expanded="false"
+                maxlength="100"
+                required
+              />
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="m7 9.5 5 5 5-5" />
               </svg>
+              <ul id="from-suggestions" class="autocomplete-list" role="listbox" hidden></ul>
             </span>
           </label>
 
@@ -62,12 +74,48 @@
           <label class="field">
             <span class="field-label">TO</span>
             <span class="select-shell">
-              <select id="to-input" name="to" required disabled>
-                <option value="">เลือกปลายทาง</option>
-              </select>
+              <input
+                id="to-input"
+                name="to"
+                type="text"
+                placeholder="พิมพ์หรือเลือกปลายทาง"
+                autocomplete="off"
+                aria-describedby="search-instruction"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-controls="to-suggestions"
+                aria-expanded="false"
+                maxlength="150"
+                disabled
+              />
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="m7 9.5 5 5 5-5" />
               </svg>
+              <ul id="to-suggestions" class="autocomplete-list" role="listbox" hidden></ul>
+            </span>
+          </label>
+
+          <label class="field field-province">
+            <span class="field-label">จังหวัดปลายทาง</span>
+            <span class="select-shell">
+              <input
+                id="province-input"
+                name="province"
+                type="text"
+                placeholder="พิมพ์หรือเลือกจังหวัด"
+                autocomplete="off"
+                aria-describedby="search-instruction"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-controls="province-suggestions"
+                aria-expanded="false"
+                maxlength="100"
+                disabled
+              />
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="m7 9.5 5 5 5-5" />
+              </svg>
+              <ul id="province-suggestions" class="autocomplete-list" role="listbox" hidden></ul>
             </span>
           </label>
 
@@ -93,9 +141,13 @@
               <circle cx="11" cy="11" r="6.5" />
               <path d="m16 16 4 4" />
             </svg>
-            ดูราคาทุกบริษัท
+            ค้นหาข้อมูล
           </button>
         </form>
+
+        <p class="sr-only" id="search-instruction">
+          พิมพ์ต้นทาง แล้วพิมพ์ปลายทางหรือจังหวัด ระบบจะแสดงผลลัพธ์ให้อัตโนมัติ
+        </p>
 
         <div
           id="form-message"
@@ -194,12 +246,16 @@
               </div>
               <button id="close-data-dialog" class="dialog-close" type="button" aria-label="ปิด">×</button>
             </div>
+            <div class="dialog-route-fields" aria-label="เส้นทางสำหรับข้อมูลใหม่">
+              <label class="field"><span class="field-label">FROM <span aria-hidden="true">*</span></span><input name="from" required list="dialog-from-options" maxlength="100" placeholder="พิมพ์หรือเลือกต้นทาง" autocomplete="off" /><datalist id="dialog-from-options"></datalist></label>
+              <label class="field"><span class="field-label">TO <span aria-hidden="true">*</span></span><input name="to" required list="dialog-to-options" maxlength="150" placeholder="พิมพ์หรือเลือกปลายทาง" autocomplete="off" /><datalist id="dialog-to-options"></datalist></label>
+            </div>
             <label class="field"><span class="field-label">ประเภทรถ</span><input name="vehicleType" required list="vehicle-options" maxlength="100" placeholder="เช่น 6 ล้อ" /><datalist id="vehicle-options"></datalist></label>
             <label class="field"><span class="field-label">บริษัท</span><input name="company" required maxlength="150" placeholder="ชื่อบริษัท" /></label>
             <label class="field"><span class="field-label">ราคาต้นทุน (บาท)</span><input name="cost" required type="number" min="0" step="1" /></label>
             <details class="optional-details"><summary>รายละเอียดเพิ่มเติม (ไม่บังคับ)</summary>
               <label class="field"><span class="field-label">รับ</span><input name="receive" maxlength="200" /></label>
-              <label class="field"><span class="field-label">To province</span><input name="toProvince" maxlength="100" /></label>
+              <label class="field"><span class="field-label">To province</span><input name="toProvince" list="dialog-province-options" maxlength="100" placeholder="พิมพ์หรือเลือกจังหวัด" /><datalist id="dialog-province-options"></datalist></label>
               <label class="field"><span class="field-label">To City</span><input name="toCity" maxlength="100" /></label>
               <label class="field"><span class="field-label">To location</span><input name="toLocation" maxlength="200" /></label>
               <label class="field"><span class="field-label">ส่ง</span><input name="send" maxlength="200" /></label>
