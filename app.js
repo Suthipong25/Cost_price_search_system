@@ -190,13 +190,13 @@
     });
   };
 
-  const renderAutocomplete = (input, list, values, isProvince) => {
+  const renderAutocomplete = (input, list, values, isProvince, showAll = false) => {
     if (input.disabled) {
       closeAutocomplete(input, list);
       return;
     }
 
-    const query = input.value.trim();
+    const query = showAll ? "" : input.value.trim();
     const matches = values
       .filter((value) =>
         isProvince
@@ -257,9 +257,9 @@
   };
 
   const setupAutocomplete = (input, list, getValues, isProvince = false) => {
-    const show = () => {
+    const show = (showAll = false) => {
       closeOtherAutocompletes(input);
-      renderAutocomplete(input, list, getValues(), isProvince);
+      renderAutocomplete(input, list, getValues(), isProvince, showAll);
     };
 
     const selectValue = (value) => {
@@ -270,13 +270,13 @@
     };
 
     autocompleteControls.push({ input, list });
-    input.addEventListener("focus", show);
-    input.addEventListener("click", show);
-    input.addEventListener("input", show);
+    input.addEventListener("focus", () => show(true));
+    input.addEventListener("click", () => show(true));
+    input.addEventListener("input", () => show(false));
     input.addEventListener("keydown", (event) => {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
-        if (list.hidden) show();
+        if (list.hidden) show(true);
         const currentIndex = Number(list.dataset.activeIndex || -1);
         setActiveAutocompleteOption(
           input,
@@ -305,7 +305,7 @@
     });
   };
 
-  const resetResults = (message = "เลือกต้นทาง แล้วพิมพ์ปลายทางหรือจังหวัดเพื่อดูราคา") => {
+  const resetResults = (message = "เลือกต้นทางเพื่อดูข้อมูลทุกปลายทาง") => {
     elements.resultBody.innerHTML = `<tr class="empty-row"><td colspan="17">${message}</td></tr>`;
     elements.summary.textContent = message;
     elements.copy.disabled = true;
@@ -336,7 +336,7 @@
       : [];
 
     if (elements.vehicle) {
-      if (from && (toTerm || provinceTerm) && matchingRoutes.length) {
+      if (from && matchingRoutes.length) {
         const availableVehicles = [
           ...new Set(matchingRoutes.map((r) => r.vehicleType)),
         ].sort((a, b) => (vehicleOrder.get(a) ?? 999) - (vehicleOrder.get(b) ?? 999));
@@ -356,7 +356,7 @@
 
     updateReadyState();
 
-    if (from && (toTerm || provinceTerm)) {
+    if (from) {
       search();
     } else {
       resetResults();
@@ -365,10 +365,7 @@
 
   function updateReadyState() {
     const fromValid = Boolean(exactValue(elements.from.value, data.fromValues));
-    const hasDestinationFilter = Boolean(
-      elements.to.value.trim() || elements.province.value.trim(),
-    );
-    const ready = fromValid && hasDestinationFilter;
+    const ready = fromValid;
 
     elements.search.disabled = !ready;
     elements.message.textContent = "";
@@ -476,12 +473,9 @@
 
     const invalid = [];
     if (!from) invalid.push(elements.from);
-    if (!toTerm && !provinceTerm) invalid.push(elements.to, elements.province);
     if (invalid.length) {
       invalid.forEach((field) => field.setAttribute("aria-invalid", "true"));
-      elements.message.textContent = from
-        ? "กรุณาพิมพ์ปลายทางหรือจังหวัดอย่างน้อย 1 ช่อง"
-        : "กรุณาพิมพ์หรือเลือก FROM จากรายการ";
+      elements.message.textContent = "กรุณาพิมพ์หรือเลือก FROM จากรายการ";
       invalid[0].focus();
       return;
     }
