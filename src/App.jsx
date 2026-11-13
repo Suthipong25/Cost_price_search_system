@@ -270,6 +270,7 @@ export default function App() {
   const [editingRow, setEditingRow] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [isUsingPostgres, setIsUsingPostgres] = useState(false);
 
   const toastTimerRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -279,6 +280,27 @@ export default function App() {
     setToastMessage(msg);
     toastTimerRef.current = setTimeout(() => setToastMessage(''), 3000);
   };
+
+  // Check and load data from PostgreSQL Backend API on mount
+  useEffect(() => {
+    async function loadFromDatabase() {
+      try {
+        const res = await fetch('/api/costs');
+        if (res.ok) {
+          const dbData = await res.json();
+          if (dbData && Array.isArray(dbData.routes) && dbData.routes.length > 0) {
+            setData(dbData);
+            setIsUsingPostgres(true);
+            showToast(`🟢 เชื่อมต่อ PostgreSQL สำเร็จ (${dbData.routes.length} เส้นทาง)`);
+          }
+        }
+      } catch {
+        // Backend not running, falls back to local data gracefully
+        setIsUsingPostgres(false);
+      }
+    }
+    loadFromDatabase();
+  }, []);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -402,25 +424,38 @@ export default function App() {
     setActiveDropdown(null);
   };
 
-  const handleEditPriceSave = (row, newCost) => {
+  const handleEditPriceSave = async (row, newCost) => {
     const updatedCost = Math.round(newCost);
     row.offer.cost = updatedCost;
     row.offer.isEdited = row.offer.originalCost != null && updatedCost !== row.offer.originalCost;
     refreshRouteMin(row.route);
 
-    // Save to localStorage overrides
-    try {
-      const overrides = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRICE_OVERRIDES) || '{}');
-      if (row.offer.isEdited) {
-        overrides[row.offer.id] = {
-          cost: updatedCost,
-          updatedAt: new Date().toISOString(),
-        };
-      } else {
-        delete overrides[row.offer.id];
+    // Save to PostgreSQL if connected
+    if (isUsingPostgres && typeof row.offer.id === 'number') {
+      try {
+        await fetch(`/api/costs/${row.offer.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cost: updatedCost }),
+        });
+      } catch (err) {
+        console.error('Failed to update cost in PostgreSQL:', err);
       }
-      localStorage.setItem(STORAGE_KEYS.PRICE_OVERRIDES, JSON.stringify(overrides));
-    } catch { /* ignore */ }
+    } else {
+      // Save to localStorage overrides fallback
+      try {
+        const overrides = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRICE_OVERRIDES) || '{}');
+        if (row.offer.isEdited) {
+          overrides[row.offer.id] = {
+            cost: updatedCost,
+            updatedAt: new Date().toISOString(),
+          };
+        } else {
+          delete overrides[row.offer.id];
+        }
+        localStorage.setItem(STORAGE_KEYS.PRICE_OVERRIDES, JSON.stringify(overrides));
+      } catch { /* ignore */ }
+    }
 
     // Update state to trigger re-render
     setData((prev) => ({ ...prev }));
@@ -428,24 +463,35 @@ export default function App() {
     showToast(`อัปเดตราคา ${row.company} เป็น ${formatMoney.format(updatedCost)} บาทแล้ว`);
   };
 
-  const handleRevertPrice = (row) => {
+  const handleRevertPrice = async (row) => {
     const original = row.offer.originalCost ?? row.offer.cost;
     row.offer.cost = original;
     row.offer.isEdited = false;
     refreshRouteMin(row.route);
 
-    try {
-      const overrides = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRICE_OVERRIDES) || '{}');
-      delete overrides[row.offer.id];
-      localStorage.setItem(STORAGE_KEYS.PRICE_OVERRIDES, JSON.stringify(overrides));
-    } catch { /* ignore */ }
+    // Revert in PostgreSQL if connected
+    if (isUsingPostgres && typeof row.offer.id === 'number') {
+      try {
+        await fetch(`/api/costs/revert/${row.offer.id}`, {
+          method: 'POST',
+        });
+      } catch (err) {
+        console.error('Failed to revert in PostgreSQL:', err);
+      }
+    } else {
+      try {
+        const overrides = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRICE_OVERRIDES) || '{}');
+        delete overrides[row.offer.id];
+        localStorage.setItem(STORAGE_KEYS.PRICE_OVERRIDES, JSON.stringify(overrides));
+      } catch { /* ignore */ }
+    }
 
     setData((prev) => ({ ...prev }));
     setEditingRow(null);
     showToast(`คืนค่าราคาเดิม ${formatMoney.format(original)} บาท เรียบร้อยแล้ว`);
   };
 
-  const handleAddNewData = (newEntry) => {
+  const handleAddNewData = async (newEntry) => {
     const { from, to, vehicleType, company, cost, receive, toProvince, toCity, toLocation, send } = newEntry;
 
     let route = data.routes.find(
@@ -469,6 +515,22 @@ export default function App() {
       send,
     };
 
+    if (isUsingPostgres) {
+      try {
+        const res = await fetch('/api/costs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newEntry),
+        });
+        const saved = await res.json();
+        if (saved && saved.item && saved.item.id) {
+          newOffer.id = saved.item.id;
+        }
+      } catch (err) {
+        console.error('Failed to insert new cost into PostgreSQL:', err);
+      }
+    }
+
     if (route) {
       route.offers.push(newOffer);
       refreshRouteMin(route);
@@ -491,29 +553,31 @@ export default function App() {
       data.vehicleTypes.push(vehicleType);
     }
 
-    try {
-      const existing = JSON.parse(localStorage.getItem(STORAGE_KEYS.ADDED_ROUTES) || '[]');
-      const savedRoute = existing.find(
-        (item) =>
-          canonical(item.from) === canonical(from) &&
-          canonical(item.to) === canonical(to) &&
-          canonical(item.vehicleType) === canonical(vehicleType)
-      );
-      if (savedRoute) {
-        savedRoute.offers.push(newOffer);
-        refreshRouteMin(savedRoute);
-      } else {
-        existing.push({
-          from,
-          to,
-          vehicleType,
-          minCost: route.minCost,
-          minCompany: route.minCompany,
-          offers: [newOffer],
-        });
-      }
-      localStorage.setItem(STORAGE_KEYS.ADDED_ROUTES, JSON.stringify(existing));
-    } catch { /* ignore */ }
+    if (!isUsingPostgres) {
+      try {
+        const existing = JSON.parse(localStorage.getItem(STORAGE_KEYS.ADDED_ROUTES) || '[]');
+        const savedRoute = existing.find(
+          (item) =>
+            canonical(item.from) === canonical(from) &&
+            canonical(item.to) === canonical(to) &&
+            canonical(item.vehicleType) === canonical(vehicleType)
+        );
+        if (savedRoute) {
+          savedRoute.offers.push(newOffer);
+          refreshRouteMin(savedRoute);
+        } else {
+          existing.push({
+            from,
+            to,
+            vehicleType,
+            minCost: route.minCost,
+            minCompany: route.minCompany,
+            offers: [newOffer],
+          });
+        }
+        localStorage.setItem(STORAGE_KEYS.ADDED_ROUTES, JSON.stringify(existing));
+      } catch { /* ignore */ }
+    }
 
     setData((prev) => ({ ...prev }));
     setIsAddModalOpen(false);
@@ -1108,31 +1172,7 @@ export default function App() {
           />
         )}
 
-        {/* Footer */}
-        <footer className="docket-footer">
-          <div>
-            <p>
-              แหล่งข้อมูล: <strong>2026.10.3 ราคาต้นทุนรถ (by lo)</strong> ·{' '}
-              <a href={SHAREPOINT_URL} target="_blank" rel="noopener noreferrer">
-                เปิดไฟล์บน SharePoint ↗
-              </a>
-            </p>
-            <p>แสดงรายละเอียด From, รับ, จังหวัด, เมือง, สถานที่ และส่งตามไฟล์ Excel</p>
-          </div>
-          <p id="data-meta-info" className="data-meta-info">
-            ข้อมูลล่าสุด: {data.sourceMeta?.workbook || '2026.10.03 ราคาต้นทุนรถ.xlsx'} (
-            {data.sourceMeta?.generatedAt
-              ? new Date(data.sourceMeta.generatedAt).toLocaleString('th-TH', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : ''}
-            ) · {data.routes.length} เส้นทาง
-          </p>
-        </footer>
+
       </section>
 
       {/* Toast Notification */}
