@@ -36,15 +36,16 @@ npm install
 ```
 
 ### 2. ตั้งค่าการเชื่อมต่อฐานข้อมูล (`.env`)
-คัดลอกไฟล์ `.env.example` เป็น `.env` แล้วระบุข้อมูลเชื่อมต่อ PostgreSQL:
+คัดลอกไฟล์ `.env.example` เป็น `.env` แล้วระบุข้อมูลการเชื่อมต่อตามความเหมาะสม:
 ```env
 PORT=5000
-DB_HOST=localhost
+DB_HOST=your_db_host
 DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=รหัสผ่านของคุณ
-DB_NAME=Test001
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DB_NAME=your_db_name
 ```
+> **หมายเหตุ:** ไฟล์ `.env` มีการใส่ไว้ใน `.gitignore` เรียบร้อยแล้ว เพื่อความปลอดภัย ห้ามนำไฟล์ `.env` ที่มีรหัสผ่านจริงขึ้น Git เด็ดขาด
 
 ### 3. สร้างตารางและนำเข้าข้อมูลตั้งต้น (Database Seeding)
 ดับเบิลคลิกไฟล์ **`seed.bat`** หรือรันผ่าน Terminal:
