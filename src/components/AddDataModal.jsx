@@ -72,123 +72,131 @@ export default function AddDataModal({
           </button>
         </div>
 
-        <div className="dialog-route-fields">
+        <div className="dialog-body">
+          <div className="dialog-route-fields">
+            <label className="field">
+              <span className="field-label">FROM *</span>
+              <input
+                name="from"
+                required
+                list="modal-from-list"
+                value={formData.from}
+                onChange={handleChange}
+                placeholder="พิมพ์หรือเลือกต้นทาง"
+              />
+              <datalist id="modal-from-list">
+                {fromOptions.map((f) => (
+                  <option key={f} value={f} />
+                ))}
+              </datalist>
+            </label>
+
+            <label className="field">
+              <span className="field-label">TO *</span>
+              <input
+                name="to"
+                required
+                list="modal-to-list"
+                value={formData.to}
+                onChange={handleChange}
+                placeholder="พิมพ์หรือเลือกปลายทาง"
+              />
+              <datalist id="modal-to-list">
+                {toOptions.map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
+            </label>
+          </div>
+
           <label className="field">
-            <span className="field-label">FROM *</span>
+            <span className="field-label">ประเภทรถ *</span>
             <input
-              name="from"
+              name="vehicleType"
               required
-              list="modal-from-list"
-              value={formData.from}
+              list="modal-vehicle-list"
+              value={formData.vehicleType}
               onChange={handleChange}
-              placeholder="พิมพ์หรือเลือกต้นทาง"
+              placeholder="เช่น 6 ล้อ"
             />
-            <datalist id="modal-from-list">
-              {fromOptions.map((f) => (
-                <option key={f} value={f} />
+            <datalist id="modal-vehicle-list">
+              {vehicleOptions.map((v) => (
+                <option key={v} value={v} />
               ))}
             </datalist>
           </label>
 
           <label className="field">
-            <span className="field-label">TO *</span>
+            <span className="field-label">บริษัท *</span>
             <input
-              name="to"
+              name="company"
               required
-              list="modal-to-list"
-              value={formData.to}
+              value={formData.company}
               onChange={handleChange}
-              placeholder="พิมพ์หรือเลือกปลายทาง"
+              placeholder="ชื่อบริษัท"
             />
-            <datalist id="modal-to-list">
-              {toOptions.map((t) => (
-                <option key={t} value={t} />
-              ))}
-            </datalist>
           </label>
+
+          <label className="field">
+            <span className="field-label">ราคาต้นทุน (บาท) *</span>
+            <input
+              name="cost"
+              required
+              type="number"
+              min="0"
+              step="1"
+              value={formData.cost}
+              onChange={handleChange}
+            />
+          </label>
+
+          <details className="optional-details">
+            <summary>รายละเอียดเพิ่มเติม (ไม่บังคับ)</summary>
+            <div className="optional-content">
+              <label className="field">
+                <span className="field-label">รับ</span>
+                <input name="receive" value={formData.receive} onChange={handleChange} placeholder="สถานที่รับสินค้า" />
+              </label>
+              <div className="dialog-grid-2">
+                <label className="field">
+                  <span className="field-label">To province</span>
+                  <input
+                    name="toProvince"
+                    list="modal-province-list"
+                    value={formData.toProvince}
+                    onChange={handleChange}
+                    placeholder="พิมพ์หรือเลือกจังหวัด"
+                  />
+                  <datalist id="modal-province-list">
+                    {provinceOptions.map((p) => (
+                      <option key={p} value={p} />
+                    ))}
+                  </datalist>
+                </label>
+                <label className="field">
+                  <span className="field-label">To City</span>
+                  <input name="toCity" value={formData.toCity} onChange={handleChange} placeholder="อำเภอ / เขต" />
+                </label>
+              </div>
+              <div className="dialog-grid-2">
+                <label className="field">
+                  <span className="field-label">To location</span>
+                  <input name="toLocation" value={formData.toLocation} onChange={handleChange} placeholder="สถานที่ปลายทาง" />
+                </label>
+                <label className="field">
+                  <span className="field-label">ส่ง</span>
+                  <input name="send" value={formData.send} onChange={handleChange} placeholder="จุดส่งสินค้า" />
+                </label>
+              </div>
+            </div>
+          </details>
+
+          {error && (
+            <p className="dialog-error" role="alert">
+              {error}
+            </p>
+          )}
         </div>
-
-        <label className="field">
-          <span className="field-label">ประเภทรถ *</span>
-          <input
-            name="vehicleType"
-            required
-            list="modal-vehicle-list"
-            value={formData.vehicleType}
-            onChange={handleChange}
-            placeholder="เช่น 6 ล้อ"
-          />
-          <datalist id="modal-vehicle-list">
-            {vehicleOptions.map((v) => (
-              <option key={v} value={v} />
-            ))}
-          </datalist>
-        </label>
-
-        <label className="field">
-          <span className="field-label">บริษัท *</span>
-          <input
-            name="company"
-            required
-            value={formData.company}
-            onChange={handleChange}
-            placeholder="ชื่อบริษัท"
-          />
-        </label>
-
-        <label className="field">
-          <span className="field-label">ราคาต้นทุน (บาท) *</span>
-          <input
-            name="cost"
-            required
-            type="number"
-            min="0"
-            step="1"
-            value={formData.cost}
-            onChange={handleChange}
-          />
-        </label>
-
-        <details className="optional-details">
-          <summary>รายละเอียดเพิ่มเติม (ไม่บังคับ)</summary>
-          <label className="field">
-            <span className="field-label">รับ</span>
-            <input name="receive" value={formData.receive} onChange={handleChange} />
-          </label>
-          <label className="field">
-            <span className="field-label">To province</span>
-            <input
-              name="toProvince"
-              list="modal-province-list"
-              value={formData.toProvince}
-              onChange={handleChange}
-              placeholder="พิมพ์หรือเลือกจังหวัด"
-            />
-            <datalist id="modal-province-list">
-              {provinceOptions.map((p) => (
-                <option key={p} value={p} />
-              ))}
-            </datalist>
-          </label>
-          <label className="field">
-            <span className="field-label">To City</span>
-            <input name="toCity" value={formData.toCity} onChange={handleChange} />
-          </label>
-          <label className="field">
-            <span className="field-label">To location</span>
-            <input name="toLocation" value={formData.toLocation} onChange={handleChange} />
-          </label>
-          <label className="field">
-            <span className="field-label">ส่ง</span>
-            <input name="send" value={formData.send} onChange={handleChange} />
-          </label>
-        </details>
-
-        {error && (
-          <p className="dialog-error" role="alert">
-            {error}
-          </p>
-        )}
 
         <div className="dialog-actions">
           <button className="utility-button" type="button" onClick={onClose}>

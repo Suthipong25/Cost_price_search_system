@@ -37,55 +37,57 @@ export default function EditPriceModal({ row, onClose, onSave, onRevert }) {
           </button>
         </div>
 
-        <div className="dialog-route-fields" aria-label="ข้อมูลเส้นทางที่กำลังแก้ไข">
-          <div>
-            <span className="field-label">เส้นทาง</span>
-            <p className="dialog-static-text">
-              {row.from} → {row.to}
-            </p>
+        <div className="dialog-body">
+          <div className="dialog-route-fields" aria-label="ข้อมูลเส้นทางที่กำลังแก้ไข">
+            <div>
+              <span className="field-label">เส้นทาง</span>
+              <p className="dialog-static-text">
+                {row.from} → {row.to}
+              </p>
+            </div>
+            <div>
+              <span className="field-label">ประเภทรถ / บริษัท</span>
+              <p className="dialog-static-text">
+                {row.vehicleType} · {row.company}
+              </p>
+            </div>
           </div>
-          <div>
-            <span className="field-label">ประเภทรถ / บริษัท</span>
-            <p className="dialog-static-text">
-              {row.vehicleType} · {row.company}
-            </p>
+
+          <label className="field">
+            <span className="field-label">
+              ราคาต้นทุนใหม่ (บาท) <span aria-hidden="true">*</span>
+            </span>
+            <input
+              name="cost"
+              type="number"
+              min="0"
+              step="1"
+              autoFocus
+              required
+              value={costValue}
+              onChange={(e) => setCostValue(e.target.value)}
+            />
+          </label>
+
+          <div className="dialog-hint">
+            {row.isEdited && row.originalCost !== row.cost ? (
+              <span>
+                ราคาเดิมจากไฟล์: <strong>{formatMoney.format(row.originalCost)} บาท</strong>{' '}
+                (กำลังใช้ราคาแก้ไข)
+              </span>
+            ) : (
+              <span>
+                ราคาปัจจุบัน: <strong>{formatMoney.format(row.cost)} บาท</strong>
+              </span>
+            )}
           </div>
-        </div>
 
-        <label className="field">
-          <span className="field-label">
-            ราคาต้นทุนใหม่ (บาท) <span aria-hidden="true">*</span>
-          </span>
-          <input
-            name="cost"
-            type="number"
-            min="0"
-            step="1"
-            autoFocus
-            required
-            value={costValue}
-            onChange={(e) => setCostValue(e.target.value)}
-          />
-        </label>
-
-        <div className="dialog-hint">
-          {row.isEdited && row.originalCost !== row.cost ? (
-            <span>
-              ราคาเดิมจากไฟล์: <strong>{formatMoney.format(row.originalCost)} บาท</strong>{' '}
-              (กำลังใช้ราคาแก้ไข)
-            </span>
-          ) : (
-            <span>
-              ราคาปัจจุบัน: <strong>{formatMoney.format(row.cost)} บาท</strong>
-            </span>
+          {error && (
+            <p className="dialog-error" role="alert">
+              {error}
+            </p>
           )}
         </div>
-
-        {error && (
-          <p className="dialog-error" role="alert">
-            {error}
-          </p>
-        )}
 
         <div className="dialog-actions">
           {row.isEdited && (
