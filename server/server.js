@@ -1,26 +1,14 @@
 import express from 'express';
 import cors from 'cors';
-import pg from 'pg';
-import dotenv from 'dotenv';
+import pool from './db.js';
 
-dotenv.config();
-
-const { Pool } = pg;
 const app = express();
 const port = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
 
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  database: process.env.DB_NAME || 'cost_price_db',
-});
-
-// Helper: Format rows into routes structure
+// Helper: Format database rows into nested routes structure
 function formatRoutesFromRows(rows) {
   const routesMap = new Map();
   const fromSet = new Set();
@@ -211,3 +199,5 @@ app.get('/api/health', (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 PostgreSQL Backend API Server รันอยู่ที่ http://localhost:${port}`);
 });
+
+export default app;

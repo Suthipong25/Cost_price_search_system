@@ -5,7 +5,7 @@ echo กำลังเริ่มต้นระบบค้นหาราค
 echo ========================================================
 echo.
 echo 1. เปิด Backend API Server (Node.js + PostgreSQL)...
-start "Cost Price Backend API (Port 5000)" cmd /k "node server.js"
+start "Cost Price Backend API (Port 5000)" cmd /k "node server/server.js"
 
 timeout /t 2 > nul
 

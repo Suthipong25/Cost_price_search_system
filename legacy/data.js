@@ -4,7 +4,7 @@ window.VEHICLE_COST_DATA = {
     "sheet": "2026.10.3 ราคาต้นทุนรถ (by lo)",
     "sourceRows": 646,
     "routeRecords": 464,
-    "generatedAt": "2026-11-11T07:18:29.231Z"
+    "generatedAt": "2026-11-16T02:12:39.417Z"
   },
   "vehicleTypes": [
     "ปิ๊กอัฟ",

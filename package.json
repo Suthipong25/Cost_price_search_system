@@ -7,8 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "node server.js",
-    "seed": "node seed.js"
+    "server": "node server/server.js",
+    "seed": "node server/seed.js",
+    "update:excel": "node scripts/update_from_excel.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",

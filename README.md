@@ -48,9 +48,9 @@ DB_NAME=your_db_name
 > **หมายเหตุ:** ไฟล์ `.env` มีการใส่ไว้ใน `.gitignore` เรียบร้อยแล้ว เพื่อความปลอดภัย ห้ามนำไฟล์ `.env` ที่มีรหัสผ่านจริงขึ้น Git เด็ดขาด
 
 ### 3. สร้างตารางและนำเข้าข้อมูลตั้งต้น (Database Seeding)
-ดับเบิลคลิกไฟล์ **`seed.bat`** หรือรันผ่าน Terminal:
+ดับเบิลคลิกไฟล์ **`scripts/seed.bat`** หรือรันผ่าน Terminal:
 ```bash
-node seed.js
+npm run seed
 ```
 *(ระบบจะสร้างตาราง `vehicle_costs` และนำเข้าข้อมูลตั้งต้น 464 เส้นทาง รวม 784 รายการราคาเข้าสู่ฐานข้อมูลอัตโนมัติ)*
 
@@ -79,26 +79,53 @@ node seed.js
 
 ---
 
-## 📂 โครงสร้างโฟลเดอร์โปรเจกต์
+## 📂 โครงสร้างโฟลเดอร์โปรเจกต์ (Clean Architecture)
 
 ```text
 Cost_price_search_system/
-├── src/
-│   ├── App.jsx            # หน้าต่างการทำงานหลักของระบบ React
-│   ├── main.jsx           # จุดเริ่มต้น React application
-│   ├── data.js            # ข้อมูลสำรองตั้งต้นสำหรับ Seeding
-│   └── styles.css         # ไฟล์สไตล์ตกแต่ง UI ระบบ
-├── server.js              # Express API Server เชื่อมต่อ PostgreSQL
-├── seed.js                # สคริปต์สร้างตารางและ Seed ข้อมูลลง Database
-├── schema.sql             # SQL DDL สร้างตาราง vehicle_costs และ Index
-├── start_all.bat          # Batch script สำหรับรันทั้ง Backend และ Frontend ในคลิกเดียว
-├── seed.bat               # Batch script สำหรับรัน Seeding ข้อมูล
-├── .env.example           # ตัวอย่างการตั้งค่าตัวแปรสภาพแวดล้อม
-└── README.md              # คู่มือการใช้งานระบบ
+├── data/                              # ไฟล์ข้อมูลต้นทาง (Excel / Raw Data)
+│   └── 2026.10.03 ราคาต้นทุนรถ.xlsx
+├── server/                            # Backend API (Node.js + Express + PostgreSQL)
+│   ├── db.js                          # Database Pool เชื่อมต่อ PostgreSQL แบบรวมศูนย์
+│   ├── server.js                      # Express REST API Server
+│   ├── seed.js                        # สคริปต์สร้างตารางและ Seed ข้อมูลลง Database
+│   └── schema.sql                     # SQL DDL สร้างตาราง vehicle_costs และ Indexes
+├── scripts/                           # สคริปต์คำสั่งและงานบำรุงรักษา
+│   ├── seed.bat                       # สคริปต์นำเข้าข้อมูลเข้า PostgreSQL
+│   ├── start_dev.bat                  # สคริปต์รันเฉพาะ Frontend สำหรับ Dev
+│   ├── update_from_excel.bat          # สคริปต์อัปเดตข้อมูลจากไฟล์ Excel
+│   └── update_from_excel.js           # โค้ดแปลงข้อมูล Excel ลงไฟล์ระบบ
+├── src/                               # Frontend (React 18 + Vite)
+│   ├── components/                    # แยก Component ตามหน้าที่ (Single Responsibility)
+│   │   ├── Header.jsx                 # ส่วนหัวกระดาษและชื่อระบบ
+│   │   ├── LookupStrip.jsx            # แถบค้นหา FROM/TO/จังหวัด/ประเภทรถ พร้อม Dropdown
+│   │   ├── ResultToolbar.jsx          # แถบเครื่องมือจัดการ (SharePoint, Import, Export, Copy, Print)
+│   │   ├── PriceTable.jsx             # ตารางแสดงราคา เปรียบเทียบ และคำนวณ Margin
+│   │   ├── EditPriceModal.jsx         # Modal หน้าต่างแก้ไขราคาและปุ่มคืนค่าเดิม
+│   │   ├── AddDataModal.jsx           # Modal หน้าต่างเพิ่มเส้นทางและข้อมูลใหม่
+│   │   └── Toast.jsx                  # กล่องข้อความแจ้งเตือนสถานะการทำงาน
+│   ├── constants/                     # ค่าคงที่ระบบ (Margin %, Storage Keys, ชื่อจังหวัด)
+│   │   └── index.js
+│   ├── services/                      # API Client สำหรับเรียกใช้งาน Backend REST API
+│   │   └── api.js
+│   ├── utils/                         # ฟังก์ชัน Utility (Formatters, ตรรกะค้นหา, จัดการ Excel)
+│   │   ├── excel.js
+│   │   └── formatters.js
+│   ├── App.jsx                        # Root Controller Component
+│   ├── main.jsx                       # จุดเริ่มต้น React application
+│   ├── data.js                        # ข้อมูลสำรองตั้งต้นสำหรับระบบ
+│   └── styles.css                     # สไตล์ตกแต่ง UI ระบบ
+├── legacy/                            # ไฟล์ต้นแบบ Vanilla JS เดิม (แยกเก็บไว้เป็นประวัติ)
+├── start_all.bat                      # [Main] ดับเบิลคลิกเพื่อเปิดทั้ง Backend และ Frontend ในคลิกเดียว
+├── index.html                         # Entry HTML สำหรับ Vite
+├── vite.config.js                     # การตั้งค่า Vite & Code Splitting
+├── package.json                       # รายการ Dependencies และ NPM Scripts
+├── .env.example                       # ตัวอย่างการตั้งค่าตัวแปรสภาพแวดล้อม
+└── README.md                          # คู่มือการใช้งานระบบ
 ```
 
 ---
 
 ## 📌 แหล่งข้อมูลอ้างอิง
-- **ไฟล์ต้นทาง:** `2026.10.03 ราคาต้นทุนรถ.xlsx`
+- **ไฟล์ต้นทาง:** `data/2026.10.03 ราคาต้นทุนรถ.xlsx`
 - **ชีตที่ใช้ประมวลผล:** `2026.10.3 ราคาต้นทุนรถ (by lo)`

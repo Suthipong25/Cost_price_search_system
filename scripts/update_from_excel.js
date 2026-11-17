@@ -5,27 +5,43 @@ import * as XLSX from 'xlsx';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
 
 function findExcelFile() {
-  const files = fs.readdirSync(__dirname);
-  const matched = files.find(f => f.endsWith('.xlsx') && !f.startsWith('~$') && f.includes('ราคาต้นทุนรถ'));
-  return matched || '2026.10.03 ราคาต้นทุนรถ.xlsx';
+  const searchDirs = [
+    path.join(rootDir, 'data'),
+    rootDir,
+  ];
+
+  for (const dir of searchDirs) {
+    if (fs.existsSync(dir)) {
+      const files = fs.readdirSync(dir);
+      const matched = files.find(
+        (f) => f.endsWith('.xlsx') && !f.startsWith('~$') && f.includes('ราคาต้นทุนรถ')
+      );
+      if (matched) {
+        return path.join(dir, matched);
+      }
+    }
+  }
+  return path.join(rootDir, 'data', '2026.10.03 ราคาต้นทุนรถ.xlsx');
 }
 
 function updateDataFromExcel(excelPath) {
-  const fullPath = path.resolve(__dirname, excelPath);
+  const fullPath = path.isAbsolute(excelPath) ? excelPath : path.resolve(rootDir, excelPath);
   if (!fs.existsSync(fullPath)) {
-    console.error(`ไม่พบไฟล์ Excel: ${excelPath}`);
+    console.error(`❌ ไม่พบไฟล์ Excel: ${excelPath}`);
     process.exit(1);
   }
 
-  console.log(`กำลังอ่านไฟล์ Excel: ${excelPath}...`);
+  console.log(`กำลังอ่านไฟล์ Excel: ${fullPath}...`);
   const buf = fs.readFileSync(fullPath);
   const wb = XLSX.read(buf, { type: 'buffer' });
-  const sheetName = wb.SheetNames.find(n => n.includes('ราคาต้นทุนรถ (by lo)')) || wb.SheetNames[0];
+  const sheetName =
+    wb.SheetNames.find((n) => n.includes('ราคาต้นทุนรถ (by lo)')) || wb.SheetNames[0];
   const sheet = wb.Sheets[sheetName];
   if (!sheet) {
-    console.error(`ไม่พบชีตราคาต้นทุนในไฟล์`);
+    console.error(`❌ ไม่พบชีตราคาต้นทุนในไฟล์`);
     process.exit(1);
   }
 
@@ -73,7 +89,7 @@ function updateDataFromExcel(excelPath) {
             vehicleType: type,
             minCost: cost,
             minCompany: company,
-            offers: []
+            offers: [],
           });
         }
         const route = routesMap.get(key);
@@ -85,7 +101,7 @@ function updateDataFromExcel(excelPath) {
           toProvince,
           toCity,
           toLocation,
-          send
+          send,
         });
         if (cost < route.minCost) {
           route.minCost = cost;
@@ -104,22 +120,24 @@ function updateDataFromExcel(excelPath) {
       sheet: sheetName,
       sourceRows: rows.length,
       routeRecords: routes.length,
-      generatedAt: new Date().toISOString()
+      generatedAt: new Date().toISOString(),
     },
     vehicleTypes: vehicleTypesOrdered,
     fromValues,
-    routes
+    routes,
   };
 
-  const outputJs = `window.VEHICLE_COST_DATA = ${JSON.stringify(resultData, null, 2)};\n`;
-  const dataJsPath = path.resolve(__dirname, 'data.js');
-  fs.writeFileSync(dataJsPath, outputJs, 'utf8');
-
-  const srcDataJsPath = path.resolve(__dirname, 'src', 'data.js');
+  const srcDataJsPath = path.resolve(rootDir, 'src', 'data.js');
   const srcOutputJs = `const VEHICLE_COST_DATA = ${JSON.stringify(resultData, null, 2)};\nexport default VEHICLE_COST_DATA;\nexport { VEHICLE_COST_DATA };\n`;
   fs.writeFileSync(srcDataJsPath, srcOutputJs, 'utf8');
 
-  console.log(`✅ อัปเดต data.js และ src/data.js สำเร็จ!`);
+  const legacyDataJsPath = path.resolve(rootDir, 'legacy', 'data.js');
+  if (fs.existsSync(path.dirname(legacyDataJsPath))) {
+    const legacyOutputJs = `window.VEHICLE_COST_DATA = ${JSON.stringify(resultData, null, 2)};\n`;
+    fs.writeFileSync(legacyDataJsPath, legacyOutputJs, 'utf8');
+  }
+
+  console.log(`✅ อัปเดต src/data.js สำเร็จ!`);
   console.log(`- จำนวนเส้นทาง: ${routes.length} รายการ`);
   console.log(`- จำนวนต้นทาง (FROM): ${fromValues.length} แห่ง`);
   console.log(`- จำนวนประเภทรถ: ${vehicleTypesOrdered.length} ประเภท`);

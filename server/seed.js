@@ -1,23 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import pg from 'pg';
-import dotenv from 'dotenv';
-import initialVehicleCostData from './src/data.js';
+import pool from './db.js';
+import initialVehicleCostData from '../src/data.js';
 
-dotenv.config();
-
-const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  database: process.env.DB_NAME || 'cost_price_db',
-});
 
 async function runSeed() {
   const client = await pool.connect();
@@ -59,8 +47,8 @@ async function runSeed() {
             route.vehicleType,
             offer.company,
             offer.cost,
-            offer.cost, // original_cost
-            false,      // is_edited
+            offer.cost,
+            false,
             offer.sourceRow || null,
           ]
         );
@@ -69,10 +57,10 @@ async function runSeed() {
     }
 
     await client.query('COMMIT');
-    console.log(`🎉 นำเข้าข้อมูลสำเร็จเรียบร้อยทั้งหมด ${totalInserted} รายการ!`);
+    console.log(`🎉 นำเข้าข้อมูลสำเร็จทั้งหมด ${totalInserted} รายการราคา!`);
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error(`❌ เกิดข้อผิดพลาดในการนำเข้าข้อมูล:`, err.message);
+    console.error('❌ เกิดข้อผิดพลาดในการ seed ข้อมูล:', err.message);
   } finally {
     client.release();
     await pool.end();
